@@ -170,6 +170,27 @@ cleanup:
   XCTAssertEqualObjects(_RecordedArguments(argumentsPath), (@[ @"--status-fd=2", @"-bsau", @"Bot <bot@example.com>" ]));
 }
 
+- (void)testCommitSigningPassesNonASCIICommitterIdentityAsUTF8 {
+  NSString* argumentsPath = [self.temporaryPath stringByAppendingPathComponent:@"non-ascii-arguments"];
+  NSString* signer = _CreateFakeGPGSigner(self.temporaryPath, @"PGP SIGNATURE", YES, 0, argumentsPath);
+
+  XCTAssertNotNil(signer);
+  XCTAssertTrue(_WriteLocalConfigOption(self.repository, @"commit.gpgsign", @"true"));
+  XCTAssertTrue(_WriteLocalConfigOption(self.repository, @"gpg.program", signer));
+  XCTAssertTrue(_WriteLocalConfigOption(self.repository, @"user.name", @"José Łukasz"));
+  [self updateFileAtPath:@"non-ascii.txt" withString:@"non-ascii\n"];
+  XCTAssertTrue([self.repository addFileToIndex:@"non-ascii.txt" error:NULL]);
+
+  GCCommit* commit = _CreateCommitFromRepositoryIndex(self.repository, @"Non-ASCII committer", NULL);
+  XCTAssertNotNil(commit);
+  XCTAssertTrue(GCCommitHasOpenPGPSignature(commit));
+
+  // Git stores the identity as UTF-8, so GnuPG has to receive it as UTF-8 to match the key's user ID.
+  NSArray* arguments = _RecordedArguments(argumentsPath);
+  XCTAssertEqual(arguments.count, 3);
+  XCTAssertEqualObjects([arguments.lastObject precomposedStringWithCanonicalMapping], @"José Łukasz <bot@example.com>");
+}
+
 - (void)testCommitSigningPrefersOpenPGPProgramAndConfiguredSigningKey {
   NSString* argumentsPath = [self.temporaryPath stringByAppendingPathComponent:@"openpgp-program-arguments"];
   NSString* legacyProgram = _CreateFakeGPGSigner(self.temporaryPath, @"PGP SIGNATURE", YES, 7, nil);

@@ -254,7 +254,7 @@ static NSString* _GPGSigningKey(GCRepository* repository, const git_signature* c
   }
   // Git falls back to the committer identity so GnuPG picks the key matching it rather
   // than whichever key GnuPG happens to consider its own default.
-  return [NSString stringWithFormat:@"%s <%s>", committer->name, committer->email];
+  return GCUserFromSignature(committer);
 }
 
 static NSString* _GPGSignatureForCommitBuffer(GCRepository* repository, NSData* commitBuffer, GCCommitSigningFormat format, const git_signature* committer, NSError** error) {
