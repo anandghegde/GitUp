@@ -177,7 +177,12 @@ cleanup:
   XCTAssertNotNil(signer);
   XCTAssertTrue(_WriteLocalConfigOption(self.repository, @"commit.gpgsign", @"true"));
   XCTAssertTrue(_WriteLocalConfigOption(self.repository, @"gpg.program", signer));
-  XCTAssertTrue(_WriteLocalConfigOption(self.repository, @"user.name", @"José Łukasz"));
+  // The test repository's app-level config sets "user.name" and outranks the local config,
+  // so the override has to go through the repository config, which writes to that level.
+  git_config* config;
+  XCTAssertEqual(git_repository_config(&config, self.repository.private), GIT_OK);
+  XCTAssertEqual(git_config_set_string(config, "user.name", "José Łukasz"), GIT_OK);
+  git_config_free(config);
   [self updateFileAtPath:@"non-ascii.txt" withString:@"non-ascii\n"];
   XCTAssertTrue([self.repository addFileToIndex:@"non-ascii.txt" error:NULL]);
 
